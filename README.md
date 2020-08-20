@@ -1,5 +1,5 @@
 # Netvisor-PHP
-Basic Call of netvisor Api's using php functions call without object oriented approach.The Following things need to set 
+Basic Call of netvisor Api's using php functions without object oriented approach.The Following things need to set 
 
 1) $api_url variable 
 2) array of createHeaders function using valid crendentials
