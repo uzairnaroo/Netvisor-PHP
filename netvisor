@@ -1,0 +1,236 @@
+<?php
+    function get_($api_url,$service, array $params = [])
+    {
+        $url = createUrl($api_url,$service, $params);
+        $headers = createHeaders($url);
+
+	    $curl = curl_init();
+		curl_setopt_array($curl, array(
+		  CURLOPT_URL => $url,
+		  CURLOPT_RETURNTRANSFER => true,
+		  CURLOPT_ENCODING => "",
+		  CURLOPT_MAXREDIRS => 10,
+		  CURLOPT_TIMEOUT => 0,
+		  CURLOPT_FOLLOWLOCATION => true,
+		  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		  CURLOPT_CUSTOMREQUEST => "GET",
+		  CURLOPT_HTTPHEADER =>  array_map(
+									function ($v, $k) { return sprintf("%s:%s", $k, $v); },
+									$headers,
+									array_keys($headers)
+								),
+		));
+
+		$response=['status'=>0,'data'=>[]];
+		$data = curl_exec($ch); 
+		if(!empty($data)){
+				$response['status']=1;
+				$response['data']=$data;
+		}
+		return $response;
+
+    }
+
+    /**
+     * Makes a request to Netvisor and returns a response.
+     *
+     * @param  string $xml
+     * @param  string $service
+     * @param  array $params
+     * @return string
+     *
+     * @throws NetvisorException
+     */
+     function post_($api_url,$xml,$service, array $params = [])
+    {
+        url = createUrl($api_url,$service, $params);
+        $headers = createHeaders($url);
+		$headers =  array_map(
+									function ($v, $k) { return sprintf("%s:%s", $k, $v); },
+									$headers,
+									array_keys($headers)
+								);
+	  
+		$headers["Content-type"]="text/xml";
+		$headers["Content-length"]=strlen($xml);
+		
+
+		$ch = curl_init(); 
+		curl_setopt($ch, CURLOPT_URL,$url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		$response=['status'=>0,'data'=>[]];
+		$data = curl_exec($ch); 
+		if(!empty($data)){
+				$response['status']=1;
+				$response['data']=$data;
+		}
+		return $response;
+	}
+
+    /**
+     * @param  string  $service
+     * @param  array   $params
+     * @return string
+     */
+    function createUrl($api_url,$service, array $params = [])
+    {
+        $url = "{$api_url}/{$service}.nv";
+
+        $params = array_filter($params);
+        $queryString = http_build_query($params);
+
+        if ($queryString) {
+            $url .= '?' . $queryString;
+        }
+
+        return $url;
+    }
+
+    /**
+     * @param  string $url
+     * @return array
+     */
+    function createHeaders($url)
+    {
+        $authenticationTransactionId = getAuthenticationTransactionId();
+        $authenticationTimestamp     = getAuthenticationTimestamp();
+		
+		/*
+			netvisor.host           = "https://www.netvisor.biz"         // Test server is "http://integrationdemo.netvisor.fi"
+			netvisor.sender         = "Testclient"                      // Pick a name that describes your service
+			netvisor.customerId     = "XX_yyyy_1yyy"                     // Create manually in your Netvisor management page
+			netvisor.partnerId      = "Xxx_yyy"                          // Obtain from your Netvisor contact
+			netvisor.organizationId = "2521043-1"                        // Your company ID
+
+			netvisor.userKey        = "4953E3D10457F778B009F88B038CC3C4" // Create manually in your Netvisor management page
+			netvisor.partnerKey     = "2BCBFB382CE884YD6C8D4F4FC1C2AC95" // Obtain from your Netvisor contact
+
+			netvisor.language       = "FI"
+			netvisor.enabled        = true
+		
+		*/
+
+
+        return array(
+            'X-Netvisor-Authentication-Sender'        => "Testclient", //netvisor.sender 
+            'X-Netvisor-Authentication-CustomerId'    => "XX_yyyy_1yyy", //netvisor.customerId 
+            'X-Netvisor-Authentication-PartnerId'     => "Xxx_yyy", //netvisor.partnerId
+            'X-Netvisor-Authentication-Timestamp'     => $authenticationTimestamp,
+            'X-Netvisor-Interface-Language'           => "EN",
+            'X-Netvisor-Organisation-ID'              => "2521043-1"//netvisor.organizationId
+            'X-Netvisor-Authentication-TransactionId' => $authenticationTransactionId,
+            'X-Netvisor-Authentication-MAC'           => getAuthenticationMac($url, $authenticationTimestamp, $authenticationTransactionId)
+        );
+    }
+
+    /**
+     * Calculates MAC MD5-hash for headers.
+     *
+     * @param  string $url
+     * @param  string $authenticationTimestamp
+     * @param  string $authenticationTransactionId
+     * @return string
+     */
+    function getAuthenticationMac($url, $authenticationTimestamp, $authenticationTransactionId)
+    {
+		
+		/*
+			netvisor.host           = "https://www.netvisor.biz"         // Test server is "http://integrationdemo.netvisor.fi"
+			netvisor.sender         = "Testclient"                      // Pick a name that describes your service
+			netvisor.customerId     = "XX_yyyy_1yyy"                     // Create manually in your Netvisor management page
+			netvisor.partnerId      = "Xxx_yyy"                          // Obtain from your Netvisor contact
+			netvisor.organizationId = "2521043-1"                        // Your company ID
+
+			netvisor.userKey        = "4953E3D10457F778B009F88B038CC3C4" // Create manually in your Netvisor management page
+			netvisor.partnerKey     = "2BCBFB382CE884YD6C8D4F4FC1C2AC95" // Obtain from your Netvisor contact
+
+			netvisor.language       = "FI"
+			netvisor.enabled        = true
+		
+		*/
+		
+	   
+	   $parameters = array(
+            $url,
+            "Testclient" ,//netvisor.sender 
+            "XX_yyyy_1yyy" ,//netvisor.customerId 
+            $authenticationTimestamp,
+            "EN",
+            "2521043-1",//netvisor.organizationId
+            $authenticationTransactionId,
+            "4953E3D10457F778B009F88B038CC3C4",//netvisor.userKey
+            "2BCBFB382CE884YD6C8D4F4FC1C2AC95",//netvisor.partnerKey  
+        );
+
+        return md5(implode('&', $parameters));
+    }
+
+    /**
+     * Generates unique transaction ID.
+     *
+     * @return string
+     */
+    function getAuthenticationTransactionId()
+    {
+        return rand(1000, 9999) . microtime();
+    }
+
+    /**
+     * Returns the current timestamp with 3-digit micro time.
+     *
+     * @return string
+     */
+    function getAuthenticationTimestamp()
+    {
+        $timestamp = \DateTime::createFromFormat('U.u', microtime(true));
+        $timestamp->setTimezone(new \DateTimeZone('GMT'));
+
+        return substr($timestamp->format('Y-m-d H:i:s.u'), 0, -3);
+    }
+    
+    $api_url="https://***.netvisor.com" // Set API URL     
+    
+    //******************************Add Customer****************************
+  	$xml="<root>
+		  <customer>
+			<customerbaseinformation>
+			  <internalidentifier>yuu".rand(1,1000)."</internalidentifier>
+			  <externalidentifier>1967543-8</externalidentifier>
+			  <organizationunitnumber>00371967543815</organizationunitnumber>
+			  <name>Example Customer Oy</name>
+			  <nameextension>Company</nameextension>
+			  <streetaddress>Testing street 1</streetaddress>
+			  <additionaladdressline>PL 101</additionaladdressline>
+			  <city>Helsinki</city>
+			  <postnumber>00100</postnumber>
+			  <country type=\"ISO-3166\">FI</country>
+			  <customergroupname>Test customers</customergroupname>
+			  <phonenumber>040 123 456</phonenumber>
+			  <faxnumber>05 123456</faxnumber>
+			  <email>test@example.fi</email>
+			  <homepageuri>www.example.com</homepageuri>
+			  <isactive>1</isactive>
+			  <!--isactive>0</isactive-->
+			  <isprivatecustomer>0</isprivatecustomer>
+			  <!--isprivatecustomer>1</isprivatecustomer-->
+			  <emailinvoicingaddress>test@example.fi</emailinvoicingaddress>
+			</customerbaseinformation>
+		  </customer>
+		</root>
+        ";
+   
+  $response=post_($api_url,$xml,"customer",['method'=>'add']);
+    print_r($response);
+ //********************************End of Add Customer*******************
+ 
+ //******************************Get Customer ******************
+ $response=get_($api_url,"getcustomer",['id'=>'1']);
+ print_r($response);
+//******************************End Customer ******************
+
+?>
+    
